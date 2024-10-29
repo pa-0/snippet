@@ -1,0 +1,52 @@
+name: wcap
+
+on:
+  workflow_dispatch:
+  #push:
+    #branches: main
+  #pull_request:
+    #branches: main
+
+jobs:
+  build:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+      deployments: write
+        
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: repo
+
+      - name: Build
+        shell: cmd
+        run: |
+          meson setup build
+          ninja -C build
+          #cd repo && build.cmd
+          #mkdir wcap
+          #move wcap.exe .\wcap
+
+      - uses: sauravkumarsahoo/sign-files-with-pfx@v1
+        with:
+          certificate: '${{ secrets.CERTIFICATE }}'
+          password: '${{ secrets.PASSWORD }}'
+          certificatesha1: '${{ secrets.CERTHASH }}'
+          certificatename: '${{ secrets.CERTNAME }}'
+          folder: 'repo/wcap/'
+          recursive: true
+
+      - name: Upload binary
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+        shell: cmd
+        run: |
+          cd repo
+          cd wcap
+          7z a wcap.zip wcap.exe
+          gh release create v1.0.0 .\wcap.zip
+        env:
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
